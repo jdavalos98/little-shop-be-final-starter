@@ -31,7 +31,7 @@ class Api::V1::Merchants::CouponsController < ApplicationController
     if coupon.deactivate_coupon
       render json: CouponSerializer.new(coupon), status: :ok
     else
-      rnder json: {errors: ["Coupon canont be deactivated because it has pending invoices"]}
+      render json: {errors: ["Coupon canont be deactivated because it has pending invoices"]}
     end
   end
 

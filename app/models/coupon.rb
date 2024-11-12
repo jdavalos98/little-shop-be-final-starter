@@ -16,15 +16,13 @@ class Coupon < ApplicationRecord
     end
   end
 
-  def deactivate_couopon
+  def deactivate_coupon
     if has_pending_invoices?
       false
     else
       update(active: false)
     end
   end
-
-  private 
 
   def has_pending_invoices?
     invoices.where(status: "pending").exists?
