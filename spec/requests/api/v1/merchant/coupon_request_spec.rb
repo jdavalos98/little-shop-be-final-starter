@@ -58,6 +58,40 @@ RSpec.describe 'Coupon endpoints' do
     expect(attributes[:active]).to eq(@coupon.active)
     expect(attributes[:usage_count]).to eq(2)
   end
+  
+  it 'returns only active coupons when active=true is passed' do
+    merchant = create(:merchant)
+    active_coupons = create_list(:coupon, 3, merchant: merchant, active: true)
+    inactive_coupons = create_list(:coupon, 2, merchant: merchant, active: false)
+  
+    get "/api/v1/merchants/#{merchant.id}/coupons", params: { active: true }
+  
+    expect(response).to be_successful
+    json_response = JSON.parse(response.body, symbolize_names: true)
+    data = json_response[:data]
+  
+    expect(data.count).to eq(3)
+    data.each do |coupon|
+      expect(coupon[:attributes][:active]).to be(true)
+    end
+  end
+  
+  it 'returns only inactive coupons when active=false is passed' do
+    merchant = create(:merchant)
+    active_coupons = create_list(:coupon, 3, merchant: merchant, active: true)
+    inactive_coupons = create_list(:coupon, 2, merchant: merchant, active: false)
+  
+    get "/api/v1/merchants/#{merchant.id}/coupons", params: { active: false }
+  
+    expect(response).to be_successful
+    json_response = JSON.parse(response.body, symbolize_names: true)
+    data = json_response[:data]
+  
+    expect(data.count).to eq(2)
+    data.each do |coupon|
+      expect(coupon[:attributes][:active]).to be(false)
+    end
+  end
 
   it 'can create a new coupon' do 
     coupon_params = {
