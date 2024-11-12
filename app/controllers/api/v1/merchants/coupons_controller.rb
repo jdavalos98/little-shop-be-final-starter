@@ -2,10 +2,14 @@ class Api::V1::Merchants::CouponsController < ApplicationController
   rescue_from ActiveRecord::RecordInvalid, with: :render_unprocessable_entity_response
   rescue_from ActiveRecord::RecordNotFound, with: :render_not_found_response
 
-  def index 
+  def index
     merchant = Merchant.find(params[:merchant_id])
-    coupons = merchant.coupons
-
+    if params[:active].present?
+      coupons = merchant.coupons.where(active: ActiveModel::Type::Boolean.new.cast(params[:active]))
+    else
+      coupons = merchant.coupons
+    end
+  
     render json: CouponSerializer.new(coupons), status: :ok
   end
 
