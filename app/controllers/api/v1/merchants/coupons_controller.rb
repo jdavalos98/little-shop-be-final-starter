@@ -25,19 +25,14 @@ class Api::V1::Merchants::CouponsController < ApplicationController
   end
 
   def update 
-    merchant = Merchant.find(params[:merchant_id])
-    coupon = merchant.coupons.find(params[:id])
-    
-    if coupon_params[:active] == false
-      if coupon.deactivate_coupon
-        render json: CouponSerializer.new(coupon), status: :ok
-      else
-        render json: { errors: ["Coupon cannot be deactivated because it has pending invoices"] }, status: :unprocessable_entity
-      end
-    else
-      coupon.update!(active: true)
-      render json: CouponSerializer.new(coupon), status: :ok
-    end
+   merchant = Merchant.find(params[:merchant_id])
+   coupon = merchant.coupons.find(params[:id])
+
+   if coupon.change_activation_status(coupon_params[:active])
+    render json: CouponSerializer.new(coupon), status: :ok
+   else 
+    render json: {errors: coupon.errors.full_messages}, status: :unprocessable_entity
+   end
   end
 
   private
