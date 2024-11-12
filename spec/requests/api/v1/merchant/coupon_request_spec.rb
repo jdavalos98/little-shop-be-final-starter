@@ -58,4 +58,65 @@ RSpec.describe 'Coupon endpoints' do
     expect(attributes[:active]).to eq(@coupon.active)
     expect(attributes[:usage_count]).to eq(2)
   end
+
+  it 'can create a new coupon' do 
+    coupon_params = {
+      coupon: {
+        name: "Buy One Get One 50",
+        code: "BOGO50",
+        discount_type: "percent",
+        discount_value: 50,
+        active: true
+      }
+    }
+
+    post "/api/v1/merchants/#{@merrchant2.id}/coupons", params: coupon_params
+
+    expect(response).to be_successful
+    expect(response).to have_http_status(:created)
+
+    json_response = JSON.parse(response.body, sybolize_names: true)
+    data = json_response[:data]
+
+    expect(data[:attributes][:name]).to eq("Buy One Get One 50")
+    expect(data[:attributes][:code]).to eq("BOGO50")
+    expect(data[:attributes][:discount_type]).to eq("percent")
+    expect(data[:attributes][:discount_value].to_f).to eq(50.0)
+    expect(data[:attributes][:active]).to be(true)
+  end
+
+  it 'returns an error if merchant has 5 active coupons' do 
+    coupon_params = {
+          coupon: {
+            name: "Extra Coupon",
+            code: "EXTRA1",
+            discount_type: "dollar",
+            discount_value: 10,
+            active: true
+          }
+        }
+        post "/api/v1/merchants/#{@merchant.id}/coupons", params: coupon_params
+
+        expect(response).not_to be_successful
+        json_response = JSON.parse(response.body, symbolize_names: true)
+        expect(json_response[:errors]).to include("Merchant cannot have more than 5 active coupons")
+  end
+
+  it 'returns error if coupon code is not unique' do 
+    coupon_params = {
+          coupon: {
+            name: "Black Friday Coupon",
+            code: "BOGO50",  
+            discount_type: "percent",
+            discount_value: 50,
+            active: true
+          }
+        }
+        post "/api/v1/merchants/#{@merrchant2.id}/coupons", params: coupon_params
+        
+        expect(response).not_to be_successful
+        json_response = JSON.parse(response.body, symbolize_names: true)
+        expect(json_response[:errors]).to include("Code has already been taken")
+
+  end
 end
