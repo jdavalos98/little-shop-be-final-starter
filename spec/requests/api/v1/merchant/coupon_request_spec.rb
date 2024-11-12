@@ -21,15 +21,15 @@ RSpec.describe 'Coupon endpoints' do
     json_response = JSON.parse(response.body, symbolize_names: true)
     data = json_response[:data]
 
-    expet(data.count).to eq(5)
+    expect(data.count).to eq(6)
     data.each do |coupon|
       expect(coupon).to have_key(:id)
       expect(coupon[:type]).to eq('coupon')
-      exepect(coupon[:attributes][:name]).to be_present
-      exepect(coupon[:attributes][:code]).to be_present
-      exepect(coupon[:attributes][:discount_type]).to be_present
-      exepect(coupon[:attributes][:discount_value]).to be_present
-      exepect(coupon[:attributes][:active]).to be_in([true, false])
+      expect(coupon[:attributes][:name]).to be_present
+      expect(coupon[:attributes][:code]).to be_present
+      expect(coupon[:attributes][:discount_type]).to be_present
+      expect(coupon[:attributes][:discount_value]).to be_present
+      expect(coupon[:attributes][:active]).to be_in([true, false])
     end
   end
 
