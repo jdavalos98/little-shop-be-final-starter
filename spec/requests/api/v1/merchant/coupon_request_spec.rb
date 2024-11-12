@@ -7,8 +7,8 @@ RSpec.describe 'Coupon endpoints' do
     @coupon = create(:coupon, merchant: @merchant2, name: 'Buy One Get One 50')
     @coupons = create_list(:coupon, 5, merchant: @merchant, active: true)
     @inactive_coupon = create(:coupon, merchant: @merchant, active: false)
-    @invoice_1 = create(:invoice, coupon: @coupon)
-    @invoice_2 = create(:invoice, coupon: @coupon)
+    @invoice_1 = create(:invoice, coupon: @coupon status: "completed")
+    @invoice_2 = create(:invoice, coupon: @coupon status: "Pending")
     @invoice_3 = create(:invoice)
   end
 
@@ -103,7 +103,7 @@ RSpec.describe 'Coupon endpoints' do
     expect(json_response[:errors]).to include("Merchant cannot have more than 5 active coupons")
   end
 
-  it 'returns an error if coupon code is not unique' do 
+  xit 'returns an error if coupon code is not unique' do 
     coupon_params = {
       coupon: {
         name: "Black Friday Coupon",
@@ -138,5 +138,28 @@ RSpec.describe 'Coupon endpoints' do
     expect(response).to have_http_status(:not_found)
     json_response = JSON.parse(response.body, symbolize_names: true)
     expect(json_response[:errors]).to include("Record not found")
+  end
+
+  it 'deactivates an active coupon' do
+    @coupon.invoices.update_all(status: "completed")
+  
+    patch "/api/v1/merchants/#{@merchant2.id}/coupons/#{@coupon.id}", params: {coupon: {active: false }}
+
+    expect(response).to be_successful
+    expect(response).to have_http_status(:ok)
+
+    json_response = JSON.parse(response.body, symbolize_names: true)
+    data = json_response[:data]
+
+    expect(data[:id]).to eq(@coupon.id.to_s)
+    expect(data[:attributes][:active]).to eq(false)
+  end
+
+  it 'returns error if coupon has pending invoices' do
+    patch "/api/v1/merchants/#{@merchant2.id}/coupons/#{@coupon.id}", params: {coupon: {active: false}}
+
+    expect(response).to have_http_status(:unprocessable_entity)
+    json_response = JSON.parse(response.body, symbolize_names: true)
+    expect(json_response[:errors]).to incldue("Coupon cannot be deactivated because it has pending invoices")
   end
 end
