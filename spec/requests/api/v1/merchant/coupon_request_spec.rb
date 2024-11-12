@@ -141,38 +141,44 @@ RSpec.describe 'Coupon endpoints' do
   end
 
   it 'activates an inactive coupon' do
-    patch "/api/v1/merchants/#{@merchant2.id}/coupons/#{@coupon.id}", params: {coupon: {active: true}}
+    patch "/api/v1/merchants/#{@merchant2.id}/coupons/#{@inactive_coupon.id}", params: { coupon: { active: true } }
     
     expect(response).to be_successful
     expect(response).to have_http_status(:ok)
 
     json_response = JSON.parse(response.body, symbolize_names: true)
     data = json_response[:data]
-
-    expect(data[:id]).to eq(@coupon.id.to_s)
-    expect(data[:attriburtes][:active]).to eq(true)
+    expect(data[:id]).to eq(@inactive_coupon.id.to_s)
+    expect(data[:attributes][:active]).to eq(true)
   end
 
   it 'deactivates an active coupon' do
     @coupon.invoices.update_all(status: "completed")
   
-    patch "/api/v1/merchants/#{@merchant2.id}/coupons/#{@coupon.id}", params: {coupon: {active: false }}
+    patch "/api/v1/merchants/#{@merchant2.id}/coupons/#{@coupon.id}", params: { coupon: { active: false } }
 
     expect(response).to be_successful
     expect(response).to have_http_status(:ok)
 
     json_response = JSON.parse(response.body, symbolize_names: true)
     data = json_response[:data]
-
     expect(data[:id]).to eq(@coupon.id.to_s)
     expect(data[:attributes][:active]).to eq(false)
   end
 
-  xit 'returns error if coupon has pending invoices' do
-    patch "/api/v1/merchants/#{@merchant2.id}/coupons/#{@coupon.id}", params: {coupon: {active: false}}
+  it 'returns error if coupon has pending invoices and cannot be deactivated' do
+    patch "/api/v1/merchants/#{@merchant2.id}/coupons/#{@coupon.id}", params: { coupon: { active: false } }
 
     expect(response).to have_http_status(:unprocessable_entity)
     json_response = JSON.parse(response.body, symbolize_names: true)
-    expect(json_response[:errors]).to incldue("Coupon cannot be deactivated because it has pending invoices")
+    expect(json_response[:errors]).to include("Coupon cannot be deactivated because it has pending invoices")
+  end
+
+  it 'returns error if merchant has 5 active coupons and attempts to activate another' do
+    patch "/api/v1/merchants/#{@merchant.id}/coupons/#{@inactive_coupon.id}", params: { coupon: { active: true } }
+
+    expect(response).to have_http_status(:unprocessable_entity)
+    json_response = JSON.parse(response.body, symbolize_names: true)
+    expect(json_response[:errors]).to include("Merchant cannot have more than 5 active coupons")
   end
 end
