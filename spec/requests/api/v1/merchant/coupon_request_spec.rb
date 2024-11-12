@@ -140,6 +140,19 @@ RSpec.describe 'Coupon endpoints' do
     expect(json_response[:errors]).to include("Record not found")
   end
 
+  it 'activates an inactive coupon' do
+    patch "/api/v1/merchants/#{@merchant2.id}/coupons/#{@coupon.id}", params: {coupon: {active: true}}
+    
+    expect(response).to be_successful
+    expect(response).to have_http_status(:ok)
+
+    json_response = JSON.parse(response.body, symbolize_names: true)
+    data = json_response[:data]
+
+    expect(data[:id]).to eq(@coupon.id.to_s)
+    expect(data[:attriburtes][:active]).to eq(true)
+  end
+
   it 'deactivates an active coupon' do
     @coupon.invoices.update_all(status: "completed")
   
