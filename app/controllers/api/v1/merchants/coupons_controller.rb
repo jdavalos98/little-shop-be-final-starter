@@ -24,6 +24,17 @@ class Api::V1::Merchants::CouponsController < ApplicationController
     render json: CouponSerializer.new(coupon), status: :created
   end
 
+  def update 
+    merchant = Merchant.find(params[:merchant_id])
+    coupon = merchant.coupons.find(params[:id])
+
+    if coupon.deactivate_coupon
+      render json: CouponSerializer.new(coupon), status: :ok
+    else
+      rnder json: {errors: ["Coupon canont be deactivated because it has pending invoices"]}
+    end
+  end
+
   private
 
   def coupon_params
@@ -37,5 +48,4 @@ class Api::V1::Merchants::CouponsController < ApplicationController
   def render_not_found_response
     render json: { errors: ["Record not found"] }, status: :not_found
   end
-
 end
