@@ -1,6 +1,5 @@
 class Coupon < ApplicationRecord
   belongs_to :merchant
-  has_many :invoices
 
   validates :name, presence: true
   validates :code, presence: true, uniqueness: true
@@ -11,7 +10,7 @@ class Coupon < ApplicationRecord
   def active_coupon_limit
     return if merchant.nil?
 
-    if merchant.coupons.where(active: true).count >=5
+    if merchant.coupons.where(active: true).count >= 5
       errors.add(:base, "Merchant cannot have more than 5 active coupons")
     end
   end
@@ -20,7 +19,7 @@ class Coupon < ApplicationRecord
     new_status ? activate_coupon : deactivate_coupon
   end
 
-  # private
+  private
 
   def deactivate_coupon
     if has_pending_invoices?
@@ -36,7 +35,7 @@ class Coupon < ApplicationRecord
       errors.add(:base, "Merchant cannot have more than 5 active coupons")
       false
     else
-      update(active: true)
+      update!(active: true)
     end
   end
 
