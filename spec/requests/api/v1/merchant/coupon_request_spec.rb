@@ -70,12 +70,12 @@ RSpec.describe 'Coupon endpoints' do
       }
     }
 
-    post "/api/v1/merchants/#{@merrchant2.id}/coupons", params: coupon_params
+    post "/api/v1/merchants/#{@merchant2.id}/coupons", params: coupon_params
 
     expect(response).to be_successful
     expect(response).to have_http_status(:created)
 
-    json_response = JSON.parse(response.body, sybolize_names: true)
+    json_response = JSON.parse(response.body, symbolize_names: true)
     data = json_response[:data]
 
     expect(data[:attributes][:name]).to eq("Buy One Get One 50")
@@ -87,36 +87,56 @@ RSpec.describe 'Coupon endpoints' do
 
   it 'returns an error if merchant has 5 active coupons' do 
     coupon_params = {
-          coupon: {
-            name: "Extra Coupon",
-            code: "EXTRA1",
-            discount_type: "dollar",
-            discount_value: 10,
-            active: true
-          }
-        }
-        post "/api/v1/merchants/#{@merchant.id}/coupons", params: coupon_params
+      coupon: {
+        name: "Extra Coupon",
+        code: "EXTRA1",
+        discount_type: "dollar",
+        discount_value: 10,
+        active: true
+      }
+    }
+    
+    post "/api/v1/merchants/#{@merchant.id}/coupons", params: coupon_params
 
-        expect(response).not_to be_successful
-        json_response = JSON.parse(response.body, symbolize_names: true)
-        expect(json_response[:errors]).to include("Merchant cannot have more than 5 active coupons")
+    expect(response).not_to be_successful
+    json_response = JSON.parse(response.body, symbolize_names: true)
+    expect(json_response[:errors]).to include("Merchant cannot have more than 5 active coupons")
   end
 
-  it 'returns error if coupon code is not unique' do 
+  it 'returns an error if coupon code is not unique' do 
     coupon_params = {
-          coupon: {
-            name: "Black Friday Coupon",
-            code: "BOGO50",  
-            discount_type: "percent",
-            discount_value: 50,
-            active: true
-          }
-        }
-        post "/api/v1/merchants/#{@merrchant2.id}/coupons", params: coupon_params
-        
-        expect(response).not_to be_successful
-        json_response = JSON.parse(response.body, symbolize_names: true)
-        expect(json_response[:errors]).to include("Code has already been taken")
+      coupon: {
+        name: "Black Friday Coupon",
+        code: "BOGO50",
+        discount_type: "percent",
+        discount_value: 50,
+        active: true
+      }
+    }
 
+    post "/api/v1/merchants/#{@merchant2.id}/coupons", params: coupon_params
+    
+    expect(response).to have_http_status(:unprocessable_entity)
+    json_response = JSON.parse(response.body, symbolize_names: true)
+    expect(json_response[:errors]).to include("Code has already been taken")
+  end
+
+  it 'returns a 404 not found error if merchant does not exist' do
+    coupon_params = {
+      coupon: {
+        name: "Non-existent Merchant Coupon",
+        code: "NONEXISTENT",
+        discount_type: "percent",
+        discount_value: 10,
+        active: true
+      }
+    }
+
+    post "/api/v1/merchants/99999/coupons", params: coupon_params 
+
+    expect(response).not_to be_successful
+    expect(response).to have_http_status(:not_found)
+    json_response = JSON.parse(response.body, symbolize_names: true)
+    expect(json_response[:errors]).to include("Record not found")
   end
 end
