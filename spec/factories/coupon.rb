@@ -1,6 +1,6 @@
 FactoryBot.define do
   factory :coupon do
-    associaiton :merchant
+    association :merchant
     name {Faker::Commerce.promotion_code}
     code {Faker::Alphanumeric.unique.alpha(number: 6).upcase}
     discount_type { %w[percent dollar].sample}

@@ -1,4 +1,4 @@
 class Coupon < ApplicationRecord
-  belongs_to :merchants
+  belongs_to :merchant
   has_many :invoices 
 end
