@@ -58,4 +58,25 @@ RSpec.describe "Merchant invoices endpoints" do
     expect(json[:errors]).to be_a Array
     expect(json[:errors].first).to eq("Couldn't find Merchant with 'id'=100000")
   end
+
+  describe 'GET /api/v1/merchants/:merchant_id/invoices' do
+    it 'returns all invoices for a merchant including coupon_id if present' do
+      merchant = create(:merchant)
+      customer = create(:customer)
+      coupon = create(:coupon, merchant: merchant)
+
+      invoice_with_coupon = create(:invoice, merchant: merchant, customer: customer, coupon: coupon, status: 'shipped')
+      invoice_without_coupon = create(:invoice, merchant: merchant, customer: customer, coupon: nil, status: 'shipped')
+
+      get "/api/v1/merchants/#{merchant.id}/invoices"
+
+      expect(response).to be_successful
+      json_response = JSON.parse(response.body, symbolize_names: true)
+      invoices = json_response[:data]
+
+      expect(invoices.count).to eq(2)
+      expect(invoices[0][:attributes][:coupon_id]).to eq(coupon.id)
+      expect(invoices[1][:attributes][:coupon_id]).to be_nil
+    end
+  end
 end
