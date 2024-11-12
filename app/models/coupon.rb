@@ -16,11 +16,27 @@ class Coupon < ApplicationRecord
     end
   end
 
+  def change_activation_status(new_status)
+    new_status ? activate_coupon : deactivate_coupon
+  end
+
+  # private
+
   def deactivate_coupon
     if has_pending_invoices?
+      errors.add(:base, "Coupon cannot be deactivated because it has pending invoices")
       false
     else
-      update(active: false)
+      update!(active: false)
+    end
+  end
+
+  def activate_coupon
+    if merchant.coupons.where(active: true).count >= 5
+      errors.add(:base, "Merchant cannot have more than 5 active coupons")
+      false
+    else
+      update(active: true)
     end
   end
 

@@ -23,16 +23,16 @@ class Api::V1::Merchants::CouponsController < ApplicationController
 
     render json: CouponSerializer.new(coupon), status: :created
   end
-
-  def update 
-   merchant = Merchant.find(params[:merchant_id])
-   coupon = merchant.coupons.find(params[:id])
-
-   if coupon.change_activation_status(coupon_params[:active])
-    render json: CouponSerializer.new(coupon), status: :ok
-   else 
-    render json: {errors: coupon.errors.full_messages}, status: :unprocessable_entity
-   end
+  
+  def update
+    merchant = Merchant.find(params[:merchant_id])
+    coupon = merchant.coupons.find(params[:id])
+  
+    if coupon.change_activation_status(coupon_params[:active])
+      render json: CouponSerializer.new(coupon), status: :ok
+    else
+      render json: { errors: coupon.errors.full_messages }, status: :unprocessable_entity
+    end
   end
 
   private

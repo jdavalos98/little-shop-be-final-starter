@@ -54,14 +54,18 @@ RSpec.describe Coupon, type: :model do
   end
 
   describe 'checking for pending invoices' do
-    it 'returns true if there are pending invoices' do
-      create(:invoice, coupon: @new_coupon, status: "pending")
-      expect(@new_coupon.has_pending_invoices?).to eq(true)
-    end
+  it 'returns false if coupon deactivates with no pending invoices' do
+    create(:invoice, coupon: @new_coupon, status: "completed")
 
-    it 'returns false if there are no pending invoices' do
-      create(:invoice, coupon: @new_coupon, status: "completed")
-      expect(@new_coupon.has_pending_invoices?).to eq(false)
-    end
+    expect(@new_coupon.change_activation_status(false)).to be_truthy
+    expect(@new_coupon.reload.active).to eq(false)
   end
+
+  it 'returns true if coupon cannot deactivate due to pending invoices' do
+    create(:invoice, coupon: @new_coupon, status: "pending")
+
+    expect(@new_coupon.change_activation_status(false)).to be_falsey
+    expect(@new_coupon.reload.active).to eq(true)
+  end
+end
 end
