@@ -12,6 +12,27 @@ RSpec.describe 'Coupon endpoints' do
     @invoice_3 = create(:invoice)
   end
 
+  it 'returns all coupons for a specific merchant' do
+    get "/api/v1/merchants/#{@merchant.id}/coupons"
+
+    expect(response).to be_successful
+    expect(response).to have_http_status(200)
+
+    json_response = JSON.parse(response.body, symbolize_names: true)
+    data = json_response[:data]
+
+    expet(data.count).to eq(5)
+    data.each do |coupon|
+      expect(coupon).to have_key(:id)
+      expect(coupon[:type]).to eq('coupon')
+      exepect(coupon[:attributes][:name]).to be_present
+      exepect(coupon[:attributes][:code]).to be_present
+      exepect(coupon[:attributes][:discount_type]).to be_present
+      exepect(coupon[:attributes][:discount_value]).to be_present
+      exepect(coupon[:attributes][:active]).to be_in([true, false])
+    end
+  end
+
   it 'returns a specific coupon with usage count' do
     get "/api/v1/merchants/#{@merchant2.id}/coupons/#{@coupon.id}"
 
