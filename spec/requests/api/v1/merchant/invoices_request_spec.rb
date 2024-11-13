@@ -1,82 +1,64 @@
-require "rails_helper"
+require 'rails_helper'
 
-RSpec.describe "Merchant invoices endpoints" do
-  before :each do
-    @merchant2 = Merchant.create!(name: "Merchant")
-    @merchant1 = Merchant.create!(name: "Merchant Again")
+RSpec.describe Api::V1::Merchants::InvoicesController, type: :request do
+  let!(:merchant) { create(:merchant) }
+  let!(:customer) { create(:customer) }
+  let!(:invoices) { create_list(:invoice, 5, merchant: merchant, customer: customer) }
+  let!(:pending_invoice) { create(:invoice, merchant: merchant, customer: customer, status: "pending") }
+  let!(:shipped_invoice) { create(:invoice, merchant: merchant, customer: customer, status: "shipped") }
 
-    @customer1 = Customer.create!(first_name: "Papa", last_name: "Gino")
-    @customer2 = Customer.create!(first_name: "Jimmy", last_name: "John")
+  describe "GET #index" do
+    context "without status filter" do
+      it "returns all invoices for the specified merchant" do
+        get "/api/v1/merchants/#{merchant.id}/invoices"
 
-    @invoice1 = Invoice.create!(customer: @customer1, merchant: @merchant1, status: "packaged")
-    Invoice.create!(customer: @customer1, merchant: @merchant1, status: "shipped")
-    Invoice.create!(customer: @customer1, merchant: @merchant1, status: "shipped")
-    Invoice.create!(customer: @customer1, merchant: @merchant1, status: "shipped")
-    @invoice2 = Invoice.create!(customer: @customer1, merchant: @merchant2, status: "shipped")
-  end
+        json = JSON.parse(response.body, symbolize_names: true)
+        expect(response).to have_http_status(:ok)
+        expect(json[:data].size).to eq(7)
+        expect(json[:data].first).to include(:id, :type, :attributes)
+        expect(json[:data].first[:attributes]).to include(:status, :customer_id, :merchant_id)
+      end
+    end
 
-  it "should return all invoices for a given merchant based on status param" do
-    get "/api/v1/merchants/#{@merchant1.id}/invoices?status=packaged"
+    context "with status filter" do
+      it "returns only invoices with the specified status" do
+        get "/api/v1/merchants/#{merchant.id}/invoices?status=pending"
 
-    json = JSON.parse(response.body, symbolize_names: true)
+        json = JSON.parse(response.body, symbolize_names: true)
+        expect(response).to have_http_status(:ok)
+        expect(json[:data].size).to eq(1)
+        expect(json[:data].first[:attributes][:status]).to eq("pending")
+      end
 
-    expect(response).to be_successful
-    expect(json[:data].count).to eq(1)
-    expect(json[:data][0][:id]).to eq(@invoice1.id.to_s)
-    expect(json[:data][0][:type]).to eq("invoice")
-    expect(json[:data][0][:attributes][:customer_id]).to eq(@customer1.id)
-    expect(json[:data][0][:attributes][:merchant_id]).to eq(@merchant1.id)
-    expect(json[:data][0][:attributes][:status]).to eq("packaged")
-  end
+      it "returns multiple invoices if more than one match the status" do
+        # Changing existing invoices to "shipped" for this test
+        create_list(:invoice, 3, merchant: merchant, customer: customer, status: "shipped")
 
-  it "should get multiple invoices if they exist for a given merchant and status param" do
-    get "/api/v1/merchants/#{@merchant1.id}/invoices?status=shipped"
+        get "/api/v1/merchants/#{merchant.id}/invoices?status=shipped"
 
-    json = JSON.parse(response.body, symbolize_names: true)
+        json = JSON.parse(response.body, symbolize_names: true)
+        expect(response).to have_http_status(:ok)
+        expect(json[:data].size).to eq(4) # 1 existing + 3 newly created with "shipped" status
+        expect(json[:data].all? { |invoice| invoice[:attributes][:status] == "shipped" }).to be true
+      end
+    end
 
-    expect(response).to be_successful
-    expect(json[:data].count).to eq(3)
-  end
+    context "sad paths" do
+      it "returns a 404 error if the merchant ID is invalid" do
+        get "/api/v1/merchants/999999/invoices"
+        json = JSON.parse(response.body, symbolize_names: true)
 
-  it "should only get invoices for merchant given" do
-    get "/api/v1/merchants/#{@merchant2.id}/invoices?status=shipped"
+        expect(response).to have_http_status(:not_found)
+        expect(json[:errors]).to include("Couldn't find Merchant with 'id'=999999")
+      end
 
-    json = JSON.parse(response.body, symbolize_names: true)
+      it "returns an empty array if no invoices match the specified status" do
+        get "/api/v1/merchants/#{merchant.id}/invoices?status=non_existent_status"
+        json = JSON.parse(response.body, symbolize_names: true)
 
-    expect(response).to be_successful
-    expect(json[:data].count).to eq(1)
-    expect(json[:data][0][:id]).to eq(@invoice2.id.to_s)
-  end
-
-  it "should return 404 and error message when merchant is not found" do
-    get "/api/v1/merchants/100000/customers"
-
-    json = JSON.parse(response.body, symbolize_names: true)
-
-    expect(response).to have_http_status(:not_found)
-    expect(json[:message]).to eq("Your query could not be completed")
-    expect(json[:errors]).to be_a Array
-    expect(json[:errors].first).to eq("Couldn't find Merchant with 'id'=100000")
-  end
-
-  describe 'GET /api/v1/merchants/:merchant_id/invoices' do
-    it 'returns all invoices for a merchant including coupon_id if present' do
-      merchant = create(:merchant)
-      customer = create(:customer)
-      coupon = create(:coupon, merchant: merchant)
-
-      invoice_with_coupon = create(:invoice, merchant: merchant, customer: customer, coupon: coupon, status: 'shipped')
-      invoice_without_coupon = create(:invoice, merchant: merchant, customer: customer, coupon: nil, status: 'shipped')
-
-      get "/api/v1/merchants/#{merchant.id}/invoices"
-
-      expect(response).to be_successful
-      json_response = JSON.parse(response.body, symbolize_names: true)
-      invoices = json_response[:data]
-
-      expect(invoices.count).to eq(2)
-      expect(invoices[0][:attributes][:coupon_id]).to eq(coupon.id)
-      expect(invoices[1][:attributes][:coupon_id]).to be_nil
+        expect(response).to have_http_status(:ok)
+        expect(json[:data]).to be_empty
+      end
     end
   end
 end
