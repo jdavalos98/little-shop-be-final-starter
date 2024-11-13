@@ -3,13 +3,12 @@ class Api::V1::Merchants::CouponsController < ApplicationController
   rescue_from ActiveRecord::RecordNotFound, with: :render_not_found_response
 
   def index
-    merchant = Merchant.find(params[:merchant_id])
-    if params[:active].present?
-      coupons = merchant.coupons.where(active: ActiveModel::Type::Boolean.new.cast(params[:active]))
-    else
-      coupons = merchant.coupons
-    end
-  
+    coupons = if params[:status].present?
+                Coupon.where(active: params[:status] == 'active')
+              else
+                Coupon.all
+              end
+
     render json: CouponSerializer.new(coupons), status: :ok
   end
 
@@ -29,13 +28,18 @@ class Api::V1::Merchants::CouponsController < ApplicationController
   end
   
   def update
-    merchant = Merchant.find(params[:merchant_id])
-    coupon = merchant.coupons.find(params[:id])
-  
-    if coupon.change_activation_status(coupon_params[:active])
-      render json: CouponSerializer.new(coupon), status: :ok
+    coupon = Coupon.find(params[:id])
+
+    if params[:coupon].key?(:active)
+      new_status = ActiveModel::Type::Boolean.new.cast(params[:coupon][:active])
+      
+      if coupon.change_activation_status(new_status)
+        render json: CouponSerializer.new(coupon), status: :ok
+      else
+        render json: { error: coupon.errors.full_messages.to_sentence }, status: :unprocessable_entity
+      end
     else
-      render json: { errors: coupon.errors.full_messages }, status: :unprocessable_entity
+      render json: { error: "Active status not provided" }, status: :bad_request
     end
   end
 
