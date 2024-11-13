@@ -7,6 +7,6 @@ class CouponSerializer
   end
 
   attribute :usage_count do |coupon|
-    coupon.invoices.count
+    coupon.usage_count
   end
 end
