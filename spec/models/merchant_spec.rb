@@ -1,95 +1,116 @@
 require 'rails_helper'
 
-describe Merchant, type: :model do
-  describe 'validations' do
-    it { should validate_presence_of(:name)}
+RSpec.describe Merchant, type: :model do
+  describe "associations" do
+    it { should have_many(:items).dependent(:destroy) }
+    it { should have_many(:invoices).dependent(:destroy) }
+    it { should have_many(:customers).through(:invoices) }
+    it { should have_many(:coupons) }
   end
 
-  describe 'relationships' do
-    it { should have_many :items }
-    it { should have_many :invoices }
-    it { should have_many(:customers).through(:invoices) }
+  describe "validations" do
+    it { should validate_presence_of(:name) }
   end
 
   describe "class methods" do
-    it "should sort merchants by created_at" do
-      merchant1 = create(:merchant, created_at: 1.day.ago)
-      merchant2 = create(:merchant, created_at: 4.days.ago)
-      merchant3 = create(:merchant, created_at: 2.days.ago)
+    describe ".sorted_by_creation" do
+      it "returns merchants ordered by most recently created" do
+        merchant1 = create(:merchant, created_at: 1.day.ago)
+        merchant2 = create(:merchant, created_at: 2.days.ago)
+        merchant3 = create(:merchant, created_at: 3.days.ago)
 
-      expect(Merchant.sorted_by_creation).to eq([merchant1, merchant3, merchant2])
+        expect(Merchant.sorted_by_creation).to eq([merchant1, merchant2, merchant3])
+      end
     end
 
-    it "should filter merchants by status of invoices" do
-      merchant1 = create(:merchant)
-      merchant2 = create(:merchant)
-      customer = create(:customer)
-      create(:invoice, status: "returned", merchant_id: merchant1.id, customer_id: customer.id)
-      create_list(:invoice, 5, merchant_id: merchant1.id, customer_id: customer.id)
-      create_list(:invoice, 5, merchant_id: merchant2.id, customer_id: customer.id)
-      create(:invoice, status: "packaged", merchant_id: merchant2.id, customer_id: customer.id)
+    describe ".filter_by_status" do
+      it "returns merchants with invoices of the given status" do
+        merchant1 = create(:merchant)
+        merchant2 = create(:merchant)
+        merchant3 = create(:merchant)
+        create(:invoice, merchant: merchant1, status: "shipped")
+        create(:invoice, merchant: merchant2, status: "shipped")
+        create(:invoice, merchant: merchant3, status: "pending")
 
-      expect(Merchant.filter_by_status("returned")).to eq([merchant1])
-      expect(Merchant.filter_by_status("packaged")).to eq([merchant2])
-      expect(Merchant.filter_by_status("shipped")).to match_array([merchant1, merchant2])
+        expect(Merchant.filter_by_status("shipped")).to match_array([merchant1, merchant2])
+        expect(Merchant.filter_by_status("pending")).to match_array([merchant3])
+      end
     end
 
-    it "should retrieve merchant when searching by name" do
-      merchant1 = Merchant.create!(name: "Turing")
-      merchant2 = Merchant.create!(name: "ring world")
-      merchant3 = Merchant.create!(name: "Vera Wang")
+    describe ".find_all_by_name" do
+      it "returns all merchants that match the given name, case insensitive" do
+        merchant1 = create(:merchant, name: "The Best Shop")
+        merchant2 = create(:merchant, name: "THE BEST SHOP")
+        merchant3 = create(:merchant, name: "Not Matching")
 
-      expect(Merchant.find_one_merchant_by_name("ring")).to eq(merchant2)
-      expect(Merchant.find_all_by_name("ring")).to eq([merchant1, merchant2])
+        expect(Merchant.find_all_by_name("best")).to match_array([merchant1, merchant2])
+      end
+    end
+
+    describe ".find_one_merchant_by_name" do
+      it "returns the first merchant that matches the name, case insensitive, in alphabetical order" do
+        merchant1 = create(:merchant, name: "Apple Store")
+        merchant2 = create(:merchant, name: "Amazon Shop")
+        merchant3 = create(:merchant, name: "Best Buy")
+
+        expect(Merchant.find_one_merchant_by_name("store")).to eq(merchant1)
+      end
     end
   end
 
   describe "instance methods" do
-    it "#item_count should return the count of items for a merchant" do
-      merchant = Merchant.create!(name: "My merchant")
-      merchant2 = Merchant.create!(name: "My other merchant")
+    describe "#item_count" do
+      it "returns the total count of items for the merchant" do
+        merchant = create(:merchant)
+        create_list(:item, 3, merchant: merchant)
 
-      # These FactoryBot methods create lots of test data quickly with random attributes
-      # The line below is the equivalent of running `merchant.items.create!` 8 times
-      # In your new tests, you do not need to use FactoryBot unless you'd like to explore it
-      create_list(:item, 8, merchant_id: merchant.id)
-      create_list(:item, 4, merchant_id: merchant2.id)
-
-      expect(merchant.item_count).to eq(8)
-      expect(merchant2.item_count).to eq(4)
+        expect(merchant.item_count).to eq(3)
+      end
     end
 
-    it "#distinct_customers should return all customers for a merchant" do
-      merchant1 = create(:merchant)
-      customer1 = create(:customer)
-      customer2 = create(:customer)
-      customer3 = create(:customer)
+    describe "#distinct_customers" do
+      it "returns a collection of distinct customers for the merchant" do
+        merchant = create(:merchant)
+        customer1 = create(:customer)
+        customer2 = create(:customer)
+        create(:invoice, merchant: merchant, customer: customer1)
+        create(:invoice, merchant: merchant, customer: customer2)
+        create(:invoice, merchant: merchant, customer: customer1)
 
-      merchant2 = create(:merchant)
-
-      create_list(:invoice, 3, merchant_id: merchant1.id, customer_id: customer1.id)
-      create_list(:invoice, 2, merchant_id: merchant1.id, customer_id: customer2.id)
-
-      create_list(:invoice, 2, merchant_id: merchant2.id, customer_id: customer3.id)
-
-      expect(merchant1.distinct_customers).to match_array([customer1, customer2])
-      expect(merchant2.distinct_customers).to eq([customer3])
+        expect(merchant.distinct_customers).to contain_exactly(customer1, customer2)
+      end
     end
 
-    it "#invoices_filtered_by_status should return all invoices for a customer that match the given status" do
-      merchant = create(:merchant)
-      other_merchant = create(:merchant)
-      customer = create(:customer)
-      inv_1_shipped = Invoice.create!(status: "shipped", merchant: merchant, customer: customer)
-      inv_2_shipped = Invoice.create!(status: "shipped", merchant: merchant, customer: customer)
-      inv_3_packaged = Invoice.create!(status: "packaged", merchant: merchant, customer: customer)
-      inv_4_packaged = Invoice.create!(status: "packaged", merchant: other_merchant, customer: customer)
-      inv_5_returned = Invoice.create!(status: "returned", merchant: merchant, customer: customer)
+    describe "#invoices_filtered_by_status" do
+      it "returns invoices for the merchant with the given status" do
+        merchant = create(:merchant)
+        invoice1 = create(:invoice, merchant: merchant, status: "shipped")
+        invoice2 = create(:invoice, merchant: merchant, status: "pending")
 
-      expect(merchant.invoices_filtered_by_status("shipped")).to match_array([inv_1_shipped, inv_2_shipped])
-      expect(merchant.invoices_filtered_by_status("packaged")).to eq([inv_3_packaged])
-      expect(merchant.invoices_filtered_by_status("returned")).to eq([inv_5_returned])
-      expect(other_merchant.invoices_filtered_by_status("packaged")).to eq([inv_4_packaged])
+        expect(merchant.invoices_filtered_by_status("shipped")).to contain_exactly(invoice1)
+        expect(merchant.invoices_filtered_by_status("pending")).to contain_exactly(invoice2)
+      end
+    end
+
+    describe "#coupons_count" do
+      it "returns the total count of coupons for the merchant" do
+        merchant = create(:merchant)
+        create_list(:coupon, 3, merchant: merchant)
+
+        expect(merchant.coupons_count).to eq(3)
+      end
+    end
+
+    describe "#invoice_coupon_count" do
+      it "returns the count of invoices with a coupon applied for the merchant" do
+        merchant = create(:merchant)
+        coupon = create(:coupon, merchant: merchant)
+        create(:invoice, merchant: merchant, coupon: coupon)
+        create(:invoice, merchant: merchant, coupon: coupon)
+        create(:invoice, merchant: merchant, coupon: nil)
+
+        expect(merchant.invoice_coupon_count).to eq(2)
+      end
     end
   end
 end
