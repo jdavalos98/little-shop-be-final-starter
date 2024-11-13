@@ -30,8 +30,8 @@ class Api::V1::Merchants::CouponsController < ApplicationController
   
   def update
     coupon = Coupon.find(params[:id])
-
-    if params[:coupon].key?(:active)
+  
+    if params[:coupon]&.key?(:active)
       new_status = ActiveModel::Type::Boolean.new.cast(params[:coupon][:active])
       
       if coupon.change_activation_status(new_status)
