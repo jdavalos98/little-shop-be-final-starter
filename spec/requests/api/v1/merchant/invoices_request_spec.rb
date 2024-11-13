@@ -1,6 +1,6 @@
 require 'rails_helper'
 
-RSpec.describe Api::V1::Merchants::InvoicesController, type: :request do
+RSpec.describe "Invoice endpoints", type: :request do
   let!(:merchant) { create(:merchant) }
   let!(:customer) { create(:customer) }
   let!(:invoices) { create_list(:invoice, 5, merchant: merchant, customer: customer) }
@@ -8,7 +8,7 @@ RSpec.describe Api::V1::Merchants::InvoicesController, type: :request do
   let!(:shipped_invoice) { create(:invoice, merchant: merchant, customer: customer, status: "shipped") }
 
   describe "GET #index" do
-    context "without status filter" do
+    describe "without status filter" do
       it "returns all invoices for the specified merchant" do
         get "/api/v1/merchants/#{merchant.id}/invoices"
 
@@ -20,7 +20,7 @@ RSpec.describe Api::V1::Merchants::InvoicesController, type: :request do
       end
     end
 
-    context "with status filter" do
+    describe "with status filter" do
       it "returns only invoices with the specified status" do
         get "/api/v1/merchants/#{merchant.id}/invoices?status=pending"
 
@@ -43,7 +43,7 @@ RSpec.describe Api::V1::Merchants::InvoicesController, type: :request do
       end
     end
 
-    context "sad paths" do
+    describe "sad paths" do
       it "returns a 404 error if the merchant ID is invalid" do
         get "/api/v1/merchants/999999/invoices"
         json = JSON.parse(response.body, symbolize_names: true)

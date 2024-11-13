@@ -1,6 +1,6 @@
 require 'rails_helper'
 
-RSpec.describe Api::V1::MerchantsController, type: :request do
+RSpec.describe "Mercahnts endpoints" type: :request do
   let!(:merchants) { create_list(:merchant, 3) }
 
   describe "GET #index" do
