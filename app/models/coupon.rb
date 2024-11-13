@@ -40,6 +40,6 @@ class Coupon < ApplicationRecord
   end
 
   def has_pending_invoices?
-    invoices.where(status: "pending").exists?
+    Invoice.where(coupon_id: id, status: "pending").exists?
   end
 end
